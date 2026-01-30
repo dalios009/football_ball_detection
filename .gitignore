@@ -1,0 +1,6 @@
+venv/ 
+*.pyc 
+__pycache__/ 
+uploads/* 
+results/* 
+history/history.json 

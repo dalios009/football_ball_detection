@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Анализ положения футбольного мяча</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: auto; padding: 20px; background-color: #f4f6f7; }
+        h2 { color: #2c3e50; }
+        form { margin-bottom: 20px; }
+        .result, .history { margin-top: 20px; border: 1px solid #ccc; padding: 15px; border-radius: 8px; background-color: #fff; }
+        img { border: 2px solid #27ae60; border-radius: 5px; max-width: 500px; }
+        table { border-collapse: collapse; margin-top: 10px; width: 100%; background-color: #fff; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #ecf0f1; }
+        .explanation { margin-top: 20px; background-color: #d6eaf8; padding: 15px; border-left: 5px solid #3498db; border-radius: 5px; }
+        .detected { color: green; font-weight: bold; }
+        .low-confidence { color: orange; font-weight: bold; }
+        .not-detected { color: red; font-weight: bold; }
+        .thumbnail { width: 100px; border: 1px solid #ccc; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Анализ положения футбольного мяча</h2>
+
+    <form method="post" enctype="multipart/form-data">
+        <input type="file" name="image" required>
+        <button type="submit">Запустить анализ</button>
+    </form>
+
+    {% if result %}
+    <div class="result">
+        <h3>Результаты текущего анализа</h3>
+        <img src="/results/{{ result[0] }}"><br><br>
+        {% if result[1].ball_detected %}
+            <p>⚽ Мяч найден! <strong>Уверенность модели: {{ result[1].confidence*100 }}%</strong></p>
+            <p>Координаты мяча на изображении: {{ result[1].bbox }}</p>
+        {% else %}
+            <p class="not-detected">Мяч не обнаружен.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if history %}
+    <div class="history">
+        <h3>История обработанных изображений</h3>
+        <table>
+            <tr>
+                <th>Дата и время</th>
+                <th>Изображение</th>
+                <th>Результат</th>
+                <th>Уверенность модели</th>
+                <th>Комментарий модели</th>
+            </tr>
+            {% for record in history %}
+            <tr>
+                <td>{{ record.date }}</td>
+                <td><img src="/results/{{ record.image }}" class="thumbnail"></td>
+                <td>
+                    {% if record.ball_detected %}
+                        <span class="detected">Мяч найден</span>
+                    {% else %}
+                        <span class="not-detected">Мяч не найден</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if record.confidence >= 0.7 %}
+                        <span class="detected">{{ record.confidence*100 }}%</span>
+                    {% elif record.confidence >= 0.4 %}
+                        <span class="low-confidence">{{ record.confidence*100 }}%</span>
+                    {% else %}
+                        <span class="not-detected">{{ record.confidence*100 }}%</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if record.ball_detected %}
+                        {% if record.confidence >= 0.7 %}
+                            Модель уверена в детекции и точно отметила мяч на изображении.
+                        {% elif record.confidence >= 0.4 %}
+                            Мяч найден, но модель средне уверена. Проверьте визуально.
+                        {% else %}
+                            Мяч найден, но модель не очень уверена. Внимательно проверьте.
+                        {% endif %}
+                    {% else %}
+                        Мяч не найден — возможно, он скрыт или плохо виден.
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    {% if history %}
+<div class="result">
+    <h3>История обработанных изображений</h3>
+    <div style="display:flex; flex-wrap: wrap; gap: 15px;">
+        {% for record in history %}
+        <div style="border: 2px solid {% if record.ball_detected %}green{% else %}red{% endif %}; padding:5px; border-radius:8px; width:150px; text-align:center;">
+            <img src="/results/{{ record.image }}" width="140"><br>
+            <span>
+                {% if record.ball_detected %}
+                    ⚽ Мяч найден
+                {% else %}
+                    ❌ Мяч не найден
+                {% endif %}
+            </span><br>
+            <small>{{ record.date }}</small>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="result">
+    <h3>Статистика по обработанным изображениям</h3>
+    <p>Всего изображений: {{ stats.total_images }}</p>
+    <p>Мяч найден: {{ stats.found }}</p>
+    <p>Мяч не найден: {{ stats.not_found }}</p>
+    <p>Средняя уверенность модели: {{ stats.avg_confidence*100 }}%</p>
+    <a href="{{ url_for('download_pdf') }}"><button>Скачать отчёт PDF</button></a>
+    <a href="{{ url_for('download_excel') }}"><button>Скачать отчёт Excel</button></a>
+</div>
+
+
+    <div class="explanation">
+        <h3>О работе модели</h3>
+        <p>
+            Для анализа изображений используется нейронная сеть <strong>YOLOv8</strong>. 
+            Она быстро и точно находит объекты на изображении в один проход. 
+            В нашем случае модель ищет футбольный мяч и отмечает его рамкой. 
+            Модель оценивает уверенность своей детекции, благодаря чему можно понять, насколько точно она определила мяч, даже в сложных сценах с несколькими игроками.
+        </p>
+    </div>
+</body>
+</html>
